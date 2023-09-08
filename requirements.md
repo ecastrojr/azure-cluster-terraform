@@ -1,6 +1,4 @@
-Eu quero vocÊ atude como um profissional de DevOps e me ajude a configurar um cluster no Microsoft Azure, usando Terraform. Ao final, me mostre todos os arquivos gerados, sem nenhum omissão ou resumo. Supunha que eu sou um usuário iniciante e todas as informações devem ser mostra de forma clara e objetiva.
-
-Aguarde até que eu envie os requisitos para você.
+# Requirements
 
 - O cluster será Docker Swarm, tendo 1 master e 2 workers;
 
@@ -12,7 +10,7 @@ Aguarde até que eu envie os requisitos para você.
 
 - Todas as máquinas deverão ter o Ubuntu 22.04 LTS instalado;
 
-- O usuário admin de todas as máquinas deverá se chamar codions e a senha deverá ser c0d1o4s;
+- O usuário admin de todas as máquinas deverá se chamar codions e a senha deverá ser ``C0d1o#4s%``;
 
 - Em todas as máquinas, quero ter acesso via SSH para o usuário admin e root;
 
@@ -27,6 +25,3 @@ Aguarde até que eu envie os requisitos para você.
 - Quero que este cluster seja configurado com o docker em todos os nós (curl -fsSL get.docker.com | sh);
 
 - O CapRover deve ser instalado apenas nos masters (docker run -p 80:80 -p 443:443 -p 3000:3000 -e ACCEPTED_TERMS=true -v /var/run/docker.sock:/var/run/docker.sock -v /captain:/captain caprover/caprover)
-
-
-- Escreva um arquivo README.md com as instruções de tudo o que deve ser feito para executar o código e acessar o cluster.

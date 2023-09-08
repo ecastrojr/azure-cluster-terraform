@@ -130,7 +130,12 @@ resource "azurerm_virtual_machine" "master_vm" {
   }
 
   os_profile_linux_config {
-    disable_password_authentication = false
+    disable_password_authentication = true
+
+    ssh_keys {
+      path     = "/home/${var.admin_username}/.ssh/authorized_keys"
+      key_data = file("~/.ssh/id_rsa.pub") # Caminho para sua chave pública SSH local
+    }
   }
 
   storage_image_reference {
@@ -151,7 +156,7 @@ resource "azurerm_virtual_machine" "master_vm" {
       type        = "ssh"
       host        = azurerm_public_ip.master_ip.ip_address
       user        = var.admin_username
-      password    = var.admin_password
+      # password    = var.admin_password # Remova esta linha
       agent       = false
       timeout     = "10m"
     }
@@ -187,7 +192,12 @@ resource "azurerm_virtual_machine" "worker_vm" {
   }
 
   os_profile_linux_config {
-    disable_password_authentication = false
+    disable_password_authentication = true
+
+    ssh_keys {
+      path     = "/home/${var.admin_username}/.ssh/authorized_keys"
+      key_data = file("~/.ssh/id_rsa.pub") # Caminho para sua chave pública SSH local
+    }
   }
 
   storage_image_reference {
@@ -207,7 +217,7 @@ resource "azurerm_virtual_machine" "worker_vm" {
       type        = "ssh"
       host        = azurerm_public_ip.worker_ip[count.index].ip_address
       user        = var.admin_username
-      password    = var.admin_password
+      # password    = var.admin_password
       agent       = false
       timeout     = "10m"
     }
