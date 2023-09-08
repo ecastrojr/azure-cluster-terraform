@@ -3,7 +3,7 @@ provider "azurerm" {
 }
 
 resource "azurerm_resource_group" "rg" {
-  name     = "${var.prefix}-rg"
+  name     = "${var.prefix}-cluster"
   location = var.location
 }
 
@@ -134,7 +134,7 @@ resource "azurerm_virtual_machine" "master_vm" {
 
     ssh_keys {
       path     = "/home/${var.admin_username}/.ssh/authorized_keys"
-      key_data = file("~/.ssh/id_rsa.pub") # Caminho para sua chave pública SSH local
+      key_data = file(var.ssh_public_key_path)
     }
   }
 
@@ -156,7 +156,6 @@ resource "azurerm_virtual_machine" "master_vm" {
       type        = "ssh"
       host        = azurerm_public_ip.master_ip.ip_address
       user        = var.admin_username
-      # password    = var.admin_password # Remova esta linha
       agent       = false
       timeout     = "10m"
     }
@@ -196,7 +195,7 @@ resource "azurerm_virtual_machine" "worker_vm" {
 
     ssh_keys {
       path     = "/home/${var.admin_username}/.ssh/authorized_keys"
-      key_data = file("~/.ssh/id_rsa.pub") # Caminho para sua chave pública SSH local
+      key_data = file(var.ssh_public_key_path)
     }
   }
 
@@ -217,7 +216,6 @@ resource "azurerm_virtual_machine" "worker_vm" {
       type        = "ssh"
       host        = azurerm_public_ip.worker_ip[count.index].ip_address
       user        = var.admin_username
-      # password    = var.admin_password
       agent       = false
       timeout     = "10m"
     }

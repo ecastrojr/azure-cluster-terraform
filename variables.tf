@@ -28,6 +28,12 @@ variable "admin_password" {
   default     = "C0d1o#4s%"
 }
 
+variable "ssh_public_key_path" {
+  description = "Caminho para sua chave pública SSH local"
+  type        = string
+  default     = "~/.ssh/id_rsa.pub"
+}
+
 variable "shared_disk_size" {
   description = "Tamanho do disco compartilhado em GB"
   default     = 160
