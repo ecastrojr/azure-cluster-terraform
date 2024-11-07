@@ -5,6 +5,8 @@
 *.tfstate.*backup
 *.tfstate.lock.info
 .terraform/
+*.hcl
+plan
 
 # Chaves e arquivos de configuração
 *.pem

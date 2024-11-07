@@ -65,6 +65,7 @@ Para instalar o Terraform, visite o [site oficial](https://www.terraform.io/down
    Este comando criará um plano e mostrará o que será feito quando você executar o comando `apply`.
 
    ```bash
+   export ARM_SUBSCRIPTION_ID="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
    terraform plan
    ```
 
