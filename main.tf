@@ -76,7 +76,7 @@ resource "azurerm_storage_account" "sa" {
 resource "azurerm_storage_share" "ss" {
   name                 = "${var.prefix}-share"
   storage_account_name = azurerm_storage_account.sa.name
-  quota                = 160
+ quota                = 160
 }
 
 # IPs Públicos para as VMs Master e Workers
@@ -125,53 +125,42 @@ resource "azurerm_network_interface" "worker_nic" {
 }
 
 # Disco Gerenciado para armazenamento compartilhado
-resource "azurerm_managed_disk" "shared_disk" {
-  name                 = "${var.prefix}-shared-disk"
-  location             = azurerm_resource_group.rg.location
-  resource_group_name  = azurerm_resource_group.rg.name
-  storage_account_type = "Standard_LRS"
-  create_option        = "Empty"
-  disk_size_gb         = var.shared_disk_size
-
-  lifecycle {
-    prevent_destroy = false  # Permite destruir o disco ao rodar terraform destroy
-  }
-}
+#resource "azurerm_managed_disk" "shared_disk" {
+#  name                 = "${var.prefix}-shared-disk"
+#  location             = azurerm_resource_group.rg.location
+#  resource_group_name  = azurerm_resource_group.rg.name
+#  storage_account_type = "Standard_LRS"
+#  create_option        = "Empty"
+#  disk_size_gb         = var.shared_disk_size
+#
+#  lifecycle {
+#    prevent_destroy = false  # Permite destruir o disco ao rodar terraform destroy
+#  }
+#}
 
 # Configuração da VM Master
-resource "azurerm_virtual_machine" "master_vm" {
+resource "azurerm_linux_virtual_machine" "master_vm" {
   name                  = "${var.prefix}-master-vm"
   location              = azurerm_resource_group.rg.location
   resource_group_name   = azurerm_resource_group.rg.name
-  vm_size               = var.master_vm_size
+  size                  = var.master_vm_size
   network_interface_ids = [azurerm_network_interface.master_nic.id]
+  computer_name         = "${var.prefix}-master"
+  admin_username        = var.admin_username
+  admin_password        = var.admin_password
+  disable_password_authentication = true
 
-  storage_os_disk {
-    name          = "${var.prefix}-osdisk1"
-    caching       = "ReadWrite"
-    create_option = "FromImage"
+  os_disk {
+    name                 = "${var.prefix}-osdisk1"
+    caching              = "ReadWrite"
+    storage_account_type = "Standard_LRS"
   }
-
-  lifecycle {
-    prevent_destroy = false  # Permite destruir a VM e o disco ao rodar terraform destroy
+  admin_ssh_key {
+    username     = var.admin_username
+    public_key = file(var.ssh_public_key_path)
   }
-
-  os_profile {
-    computer_name  = "${var.prefix}-master"
-    admin_username = var.admin_username
-    admin_password = var.admin_password
-  }
-
-  os_profile_linux_config {
-    disable_password_authentication = true
-
-    ssh_keys {
-      path     = "/home/${var.admin_username}/.ssh/authorized_keys"
-      key_data = file(var.ssh_public_key_path)
-    }
-  }
-
-  storage_image_reference {
+  
+  source_image_reference {
     publisher = var.ubuntu_image.publisher
     offer     = var.ubuntu_image.offer
     sku       = var.ubuntu_image.sku
@@ -183,8 +172,11 @@ provisioner "remote-exec" {
       "curl -fsSL get.docker.com | sh",
       "sudo systemctl start docker",
       "sudo systemctl enable docker",
-      "sudo mkdir -p /opt/docker",
-      "sudo mount -t cifs //${azurerm_storage_account.sa.name}.file.core.windows.net/${azurerm_storage_share.ss.name} /mnt/disks -o vers=3.0,username=${azurerm_storage_account.sa.name},password=${azurerm_storage_account.sa.primary_access_key},dir_mode=0777,file_mode=0777",
+      "sudo groupadd docker",
+      "sudo usermod -aG docker $USER",
+      "newgrp docker",
+      "sudo mkdir -p /opt/docker-share",
+      "sudo mount -t cifs //${azurerm_storage_account.sa.name}.file.core.windows.net/${azurerm_storage_share.ss.name} /opt/docker-share -o vers=3.0,username=${azurerm_storage_account.sa.name},password=${azurerm_storage_account.sa.primary_access_key},dir_mode=0777,file_mode=0777",
     ]
 
     connection {
@@ -197,40 +189,30 @@ provisioner "remote-exec" {
 }
 
 # Configuração das VMs Workers
-resource "azurerm_virtual_machine" "worker_vm" {
+resource "azurerm_linux_virtual_machine" "worker_vm" {
   count                 = 2
   name                  = "${var.prefix}-worker-vm-${count.index}"
   location              = azurerm_resource_group.rg.location
   resource_group_name   = azurerm_resource_group.rg.name
-  vm_size               = var.worker_vm_size
+  size               = var.worker_vm_size
   network_interface_ids = [azurerm_network_interface.worker_nic[count.index].id]
+  computer_name  = "${var.prefix}-worker-${count.index}"
+  admin_username = var.admin_username
+  admin_password = var.admin_password
+  disable_password_authentication = true
 
-  storage_os_disk {
+  os_disk {
     name          = "${var.prefix}-osdisk-worker-${count.index}"
     caching       = "ReadWrite"
-    create_option = "FromImage"
+    storage_account_type = "Standard_LRS"
+  }
+  admin_ssh_key {
+    username     = var.admin_username
+    public_key = file(var.ssh_public_key_path)
   }
 
-  lifecycle {
-    prevent_destroy = false  # Permite destruir a VM e o disco ao rodar terraform destroy
-  }
 
-  os_profile {
-    computer_name  = "${var.prefix}-worker-${count.index}"
-    admin_username = var.admin_username
-    admin_password = var.admin_password
-  }
-
-  os_profile_linux_config {
-    disable_password_authentication = true
-
-    ssh_keys {
-      path     = "/home/${var.admin_username}/.ssh/authorized_keys"
-      key_data = file(var.ssh_public_key_path)
-    }
-  }
-
-  storage_image_reference {
+  source_image_reference {
     publisher = var.ubuntu_image.publisher
     offer     = var.ubuntu_image.offer
     sku       = var.ubuntu_image.sku
@@ -242,8 +224,11 @@ resource "azurerm_virtual_machine" "worker_vm" {
       "curl -fsSL get.docker.com | sh",
       "sudo systemctl start docker",
       "sudo systemctl enable docker",
-      "sudo mkdir -p /opt/docker",
-      "sudo mount -t cifs //${azurerm_storage_account.sa.name}.file.core.windows.net/${azurerm_storage_share.ss.name} /mnt/disks -o vers=3.0,username=${azurerm_storage_account.sa.name},password=${azurerm_storage_account.sa.primary_access_key},dir_mode=0777,file_mode=0777",
+      "sudo groupadd docker",
+      "sudo usermod -aG docker $USER",
+      "newgrp docker",
+      "sudo mkdir -p /opt/docker-share",
+      "sudo mount -t cifs //${azurerm_storage_account.sa.name}.file.core.windows.net/${azurerm_storage_share.ss.name} /opt/docker-share -o vers=3.0,username=${azurerm_storage_account.sa.name},password=${azurerm_storage_account.sa.primary_access_key},dir_mode=0777,file_mode=0777",
     ]
 
     connection {
