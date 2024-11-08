@@ -181,20 +181,17 @@ resource "azurerm_virtual_machine" "master_vm" {
 provisioner "remote-exec" {
     inline = [
       "curl -fsSL get.docker.com | sh",
-      "ufw allow 80,443,3000,996,7946,4789,2377/tcp; ufw allow 7946,4789,2377/udp;",
-      "systemctl start docker",
-      "systemctl enable docker",
-      "mkdir -p /opt/docker",
-      "mount -t cifs //${azurerm_storage_account.sa.name}.file.core.windows.net/${azurerm_storage_share.ss.name} /mnt/disks -o vers=3.0,username=${azurerm_storage_account.sa.name},password=${azurerm_storage_account.sa.primary_access_key},dir_mode=0777,file_mode=0777",
-
+      "sudo systemctl start docker",
+      "sudo systemctl enable docker",
+      "sudo mkdir -p /opt/docker",
+      "sudo mount -t cifs //${azurerm_storage_account.sa.name}.file.core.windows.net/${azurerm_storage_share.ss.name} /mnt/disks -o vers=3.0,username=${azurerm_storage_account.sa.name},password=${azurerm_storage_account.sa.primary_access_key},dir_mode=0777,file_mode=0777",
     ]
 
     connection {
       type        = "ssh"
       host        = azurerm_public_ip.master_ip.ip_address
       user        = var.admin_username
-      agent       = false
-      timeout     = "10m"
+      private_key = file(var.ssh_private_key_path)
     }
   }
 }
@@ -243,19 +240,17 @@ resource "azurerm_virtual_machine" "worker_vm" {
   provisioner "remote-exec" {
     inline = [
       "curl -fsSL get.docker.com | sh",
-      "ufw allow 80,443,3000,996,7946,4789,2377/tcp; ufw allow 7946,4789,2377/udp;",
-      "systemctl start docker",
-      "systemctl enable docker",
-      "mkdir -p /mnt/disks",
-      "mount -t cifs //${azurerm_storage_account.sa.name}.file.core.windows.net/${azurerm_storage_share.ss.name} /mnt/disks -o vers=3.0,username=${azurerm_storage_account.sa.name},password=${azurerm_storage_account.sa.primary_access_key},dir_mode=0777,file_mode=0777",
+      "sudo systemctl start docker",
+      "sudo systemctl enable docker",
+      "sudo mkdir -p /opt/docker",
+      "sudo mount -t cifs //${azurerm_storage_account.sa.name}.file.core.windows.net/${azurerm_storage_share.ss.name} /mnt/disks -o vers=3.0,username=${azurerm_storage_account.sa.name},password=${azurerm_storage_account.sa.primary_access_key},dir_mode=0777,file_mode=0777",
     ]
 
     connection {
       type        = "ssh"
       host        = azurerm_public_ip.worker_ip[count.index].ip_address
       user        = var.admin_username
-      agent       = false
-      timeout     = "10m"
+      private_key = file(var.ssh_private_key_path)
     }
   }
 

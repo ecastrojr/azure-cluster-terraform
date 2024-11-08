@@ -40,6 +40,11 @@ variable "ssh_public_key_path" {
   type        = string
   default     = "~/.ssh/id_ed25519.pub"
 }
+variable "ssh_private_key_path" {
+  description = "Caminho para sua chave privada SSH local"
+  type        = string
+  default     = "~/.ssh/id_ed25519"
+}
 
 # Tamanho do disco compartilhado em gigabytes (GB)
 variable "shared_disk_size" {
