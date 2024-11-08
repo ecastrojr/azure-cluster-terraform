@@ -52,6 +52,11 @@ variable "shared_disk_size" {
   default     = 160
 }
 
+variable "share_folder" {
+  description = "Caminha absoluto da pasta a ser compartilhada entre nós"
+  default = "/opt/docker_share"
+}
+
 # Configuração da imagem Ubuntu que será utilizada nas VMs
 variable "ubuntu_image" {
   description = "Imagem do Ubuntu no Azure"

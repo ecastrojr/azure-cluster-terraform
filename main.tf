@@ -65,19 +65,19 @@ resource "azurerm_subnet" "subnet" {
 }
 
 # Conta de Armazenamento para armazenamento compartilhado no cluster
-resource "azurerm_storage_account" "sa" {
-  name                     = "${var.prefix}storacc"
-  resource_group_name      = azurerm_resource_group.rg.name
-  location                 = azurerm_resource_group.rg.location
-  account_tier             = "Standard"
-  account_replication_type = "LRS"
-}
+#resource "azurerm_storage_account" "sa" {
+#  name                     = "${var.prefix}storacc"
+#  resource_group_name      = azurerm_resource_group.rg.name
+#  location                 = azurerm_resource_group.rg.location
+#  account_tier             = "Standard"
+#  account_replication_type = "LRS"
+#}
 
-resource "azurerm_storage_share" "ss" {
-  name                 = "${var.prefix}-share"
-  storage_account_name = azurerm_storage_account.sa.name
- quota                = 160
-}
+#resource "azurerm_storage_share" "ss" {
+#  name                 = "${var.prefix}-share"
+#  storage_account_name = azurerm_storage_account.sa.name
+# quota                = 160
+#}
 
 # IPs Públicos para as VMs Master e Workers
 resource "azurerm_public_ip" "master_ip" {
@@ -124,20 +124,6 @@ resource "azurerm_network_interface" "worker_nic" {
   }
 }
 
-# Disco Gerenciado para armazenamento compartilhado
-#resource "azurerm_managed_disk" "shared_disk" {
-#  name                 = "${var.prefix}-shared-disk"
-#  location             = azurerm_resource_group.rg.location
-#  resource_group_name  = azurerm_resource_group.rg.name
-#  storage_account_type = "Standard_LRS"
-#  create_option        = "Empty"
-#  disk_size_gb         = var.shared_disk_size
-#
-#  lifecycle {
-#    prevent_destroy = false  # Permite destruir o disco ao rodar terraform destroy
-#  }
-#}
-
 # Configuração da VM Master
 resource "azurerm_linux_virtual_machine" "master_vm" {
   name                  = "${var.prefix}-master-vm"
@@ -154,6 +140,7 @@ resource "azurerm_linux_virtual_machine" "master_vm" {
     name                 = "${var.prefix}-osdisk1"
     caching              = "ReadWrite"
     storage_account_type = "Standard_LRS"
+    disk_size_gb         = "100"
   }
   admin_ssh_key {
     username     = var.admin_username
@@ -174,9 +161,18 @@ provisioner "remote-exec" {
       "sudo systemctl enable docker",
       "sudo groupadd docker",
       "sudo usermod -aG docker $USER",
-      "newgrp docker",
-      "sudo mkdir -p /opt/docker-share",
-      "sudo mount -t cifs //${azurerm_storage_account.sa.name}.file.core.windows.net/${azurerm_storage_share.ss.name} /opt/docker-share -o vers=3.0,username=${azurerm_storage_account.sa.name},password=${azurerm_storage_account.sa.primary_access_key},dir_mode=0777,file_mode=0777",
+ #     "newgrp docker",
+      "sudo mkdir -p ${var.share_folder}",
+      "sudo apt-get install -y nfs-server",
+      "echo '${var.share_folder} *(rw,sync,subtree_check)' | sudo tee -a /etc/exports",
+      "sudo exportfs -ra",
+      "sudo docker swarm init > swarm_init_output.txt",
+      "join_command=$(grep 'docker swarm join --token' swarm_init_output.txt | tail -n 1)",
+      "echo '#!/bin/bash' > join_worker.sh",
+      "echo $join_command >> join_worker.sh",
+      "chmod +x join_worker.sh",
+      "sudo mv join_worker.sh ${var.share_folder}"
+     # "sudo mount -t cifs //${azurerm_storage_account.sa.name}.file.core.windows.net/${azurerm_storage_share.ss.name} /opt/docker-share -o vers=3.0,username=${azurerm_storage_account.sa.name},password=${azurerm_storage_account.sa.primary_access_key},dir_mode=0777,file_mode=0777",
     ]
 
     connection {
@@ -218,7 +214,8 @@ resource "azurerm_linux_virtual_machine" "worker_vm" {
     sku       = var.ubuntu_image.sku
     version   = var.ubuntu_image.version
   }
-
+  
+  depends_on = [azurerm_linux_virtual_machine.master_vm]
   provisioner "remote-exec" {
     inline = [
       "curl -fsSL get.docker.com | sh",
@@ -226,9 +223,11 @@ resource "azurerm_linux_virtual_machine" "worker_vm" {
       "sudo systemctl enable docker",
       "sudo groupadd docker",
       "sudo usermod -aG docker $USER",
-      "newgrp docker",
-      "sudo mkdir -p /opt/docker-share",
-      "sudo mount -t cifs //${azurerm_storage_account.sa.name}.file.core.windows.net/${azurerm_storage_share.ss.name} /opt/docker-share -o vers=3.0,username=${azurerm_storage_account.sa.name},password=${azurerm_storage_account.sa.primary_access_key},dir_mode=0777,file_mode=0777",
+      "sudo mkdir -p ${var.share_folder}",
+      "sudo apt-get install nfs-common -y",
+      "sudo mount -o v3  ${azurerm_network_interface.master_nic.private_ip_address}:${var.share_folder} ${var.share_folder}",
+      "sudo bash -c ${var.share_folder}/join_worker.sh",
+      #"sudo mount -t cifs //${azurerm_storage_account.sa.name}.file.core.windows.net/${azurerm_storage_share.ss.name} /opt/docker-share -o vers=3.0,username=${azurerm_storage_account.sa.name},password=${azurerm_storage_account.sa.primary_access_key},dir_mode=0777,file_mode=0777",
     ]
 
     connection {
